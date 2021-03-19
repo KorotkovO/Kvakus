@@ -16,6 +16,10 @@ import javax.persistence.Id;
 public class CandyModel {
 
 
+    @Id
+    @GeneratedValue
+    private Long id;
+
     private String name;
 
     private String file;
