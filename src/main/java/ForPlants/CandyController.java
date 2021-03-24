@@ -1,12 +1,32 @@
 package ForPlants;
 
-import org.jboss.resteasy.annotations.jaxrs.PathParam;
+
+import java.util.List;
 
 import javax.enterprise.context.ApplicationScoped;
-import javax.ws.rs.*;
+import javax.inject.Inject;
+import javax.transaction.Transactional;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.PUT;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
-import java.util.List;
-import java.util.Optional;
+import javax.ws.rs.ext.ExceptionMapper;
+import javax.ws.rs.ext.Provider;
+
+import com.sun.net.httpserver.HttpsParameters;
+import org.jboss.logging.Logger;
+import org.jboss.resteasy.annotations.Body;
+import org.jboss.resteasy.annotations.jaxrs.PathParam;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
+import io.quarkus.panache.common.Sort;
 
 
 
@@ -19,66 +39,69 @@ import java.util.Optional;
 public class CandyController {
 
 
-    CandyRepository reposit;
-
-    public CandyController(CandyRepository reposit) {
-        this.reposit = reposit;
-    }
 
 
     @GET
-    @Produces("application/json")
     public Iterable<CandyModel> findAll() {
-        return reposit.findAll();
+        return CandyModel.listAll();
     }
 
 
 
-//    @DELETE
-//    @Path("{name}")
-//    public void delete(@org.jboss.resteasy.annotations.jaxrs.PathParam String name) {
-//        reposit.deleteByName(name);
-//    }
+
+
+    @DELETE
+    @Path("{id}")
+    @Transactional
+    public void delete(@org.jboss.resteasy.annotations.jaxrs.PathParam Long id) {
+        CandyModel.deleteById(id);
+    }
+
+
+
+
 
     @POST
-    @Path("/name/{name}/file/{file}/listened/{listened}/company/{company}")
-    @Produces("application/json")
-    public CandyModel create(@PathParam String name, @PathParam String file, @PathParam int listened, @PathParam String company) {
-        return reposit.save(new CandyModel(name, file, listened, company));
+    @Path("/add")
+    @Transactional
+    @Body
+    public Response create(CandyModel candyToSave) {
+        candyToSave.persist();
+        return Response.ok(candyToSave).status(201).build();
     }
 
 
-    @POST
-    @Path("/add/candy")
-    @Produces("application/json")
-    public Response addProduct(CandyModel candy){
-        reposit.save(candy);
-        return Response.ok().build();
-    }
+    @PUT
+    @Path("{id}")
+    @Body
+    @Transactional
+    public CandyModel update(@PathParam Long id, CandyModel newcandy) {
 
+        CandyModel oldcandy = CandyModel.findById(id);
 
-
-
-/*    @PUT
-    @Path("/id/{id}/color/{color}")
-    @Produces("application/json")
-    public Fruit changeColor(@org.jboss.resteasy.annotations.jaxrs.PathParam Long id, @org.jboss.resteasy.annotations.jaxrs.PathParam String color) {
-        Optional<Fruit> optional = fruitRepository.findById(id);
-        if (optional.isPresent()) {
-            Fruit fruit = optional.get();
-            fruit.setColor(color);
-            return fruitRepository.save(fruit);
+        if (oldcandy == null) {
+            throw new WebApplicationException("Candy with id of " + id + " does not exist.", 404);
         }
 
-        throw new IllegalArgumentException("No Fruit with id " + id + " exists");
-    }*/
+            oldcandy.setCompany(newcandy.getCompany());
+            oldcandy.setName(newcandy.getName());
+            oldcandy.setFile(newcandy.getFile());
+            oldcandy.setListened(newcandy.getListened());
+
+        return oldcandy;
+    }
+
+
+
 
     @GET
-    @Path("/name/{name}")
-    @Produces("application/json")
-    public CandyModel findByName(@PathParam String name) {
-        return reposit.findByName(name);
+    @Path("{id}")
+    public CandyModel findById(@org.jboss.resteasy.annotations.jaxrs.PathParam Long id) {
+        return CandyModel.findById(id);
     }
+
+
+
 
 
 
