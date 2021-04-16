@@ -1,58 +1,67 @@
 package ForPlants;
 
 
-import java.util.List;
+import java.io.*;
+import java.util.*;
 
 import javax.enterprise.context.ApplicationScoped;
-import javax.inject.Inject;
 import javax.transaction.Transactional;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.*;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
-import javax.ws.rs.ext.ExceptionMapper;
-import javax.ws.rs.ext.Provider;
 
-import com.sun.net.httpserver.HttpsParameters;
-import org.jboss.logging.Logger;
+import ForPhone.StasisListener;
 import org.jboss.resteasy.annotations.Body;
 import org.jboss.resteasy.annotations.jaxrs.PathParam;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-
-import io.quarkus.panache.common.Sort;
-
-
+import org.jboss.resteasy.annotations.providers.multipart.MultipartForm;
+import org.jboss.resteasy.plugins.providers.multipart.*;
 
 
 
 @Path("/api/candy")
-@Produces("application/json")
-@Consumes("application/json")
 @ApplicationScoped
 public class CandyController {
 
 
+    public static MultiBody exbody;
+    boolean b = false;
+    public static int example;
+
+    public CandyController (){ }
+
+
+//    public static void setSongName(String s){
+//        StasisListener.songId = "aaaaaaaaaaaaa";
+//    }
+//
+//    public static String getSongName(){
+//        String o = StasisListener.songId;
+//        return o;
+//    }
 
 
     @GET
-    public Iterable<CandyModel> findAll() {
+    public List<CandyModel> findAll() {
         return CandyModel.listAll();
     }
 
 
+
+    @GET
+    @Path("{id}")
+    public CandyModel findOne(@org.jboss.resteasy.annotations.jaxrs.PathParam Long id){
+        return CandyModel.findById(id);
+    }
 
 
 
     @DELETE
     @Path("{id}")
     @Transactional
+    @Produces("application/json")
+    @Consumes("application/json")
     public void delete(@org.jboss.resteasy.annotations.jaxrs.PathParam Long id) {
         CandyModel.deleteById(id);
     }
@@ -65,7 +74,15 @@ public class CandyController {
     @Path("/add")
     @Transactional
     @Body
+    @Produces("application/json")
+    @Consumes("application/json")
     public Response create(CandyModel candyToSave) {
+        if(b==true){
+            candyToSave.setFile(exbody.fileName + " ");
+            b = false;
+        }else{
+            candyToSave.setFile("no file");
+        }
         candyToSave.persist();
         return Response.ok(candyToSave).status(201).build();
     }
@@ -75,6 +92,8 @@ public class CandyController {
     @Path("{id}")
     @Body
     @Transactional
+    @Produces("application/json")
+    @Consumes("application/json")
     public CandyModel update(@PathParam Long id, CandyModel newcandy) {
 
         CandyModel oldcandy = CandyModel.findById(id);
@@ -84,11 +103,19 @@ public class CandyController {
         }
 
             oldcandy.setCompany(newcandy.getCompany());
-            oldcandy.setName(newcandy.getName());
-            oldcandy.setFile(newcandy.getFile());
+            oldcandy.setName(newcandy.getName() + CandyModel.listAll().size());
+//            oldcandy.setFile(newcandy.getFile());
+            if(b==true){
+            oldcandy.setFile(exbody.fileName + " ");
+                b = false;
+            }
             oldcandy.setListened(newcandy.getListened());
 
         return oldcandy;
+    }
+
+    public static int getSize(){
+        return CandyModel.getCount();
     }
 
 
@@ -96,9 +123,66 @@ public class CandyController {
 
     @GET
     @Path("{id}")
+    @Produces("application/json")
+    @Consumes("application/json")
     public CandyModel findById(@org.jboss.resteasy.annotations.jaxrs.PathParam Long id) {
         return CandyModel.findById(id);
     }
+
+
+
+    private String getFileName(MultivaluedMap<String, String> header) {
+
+        String[] contentDisposition = header.getFirst("Content-Disposition").split(";");
+
+        for (String filename : contentDisposition) {
+            if ((filename.trim().startsWith("filename"))) {
+
+                String[] name = filename.split("=");
+
+                String finalFileName = name[1].trim().replaceAll("\"", "");
+                return finalFileName;
+            }
+        }
+        return "unknown";
+    }
+
+
+    @POST
+    @Path("/multipart")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    public void sendFile(@MultipartForm MultipartFormDataInput data) throws Exception {
+        b = true;
+
+        MultiBody body = new MultiBody();
+
+        InputPart i = data.getFormDataMap().get("file").get(0);
+//        Map<String, List<InputPart>> map = data.getFormDataMap();
+
+        body.fileName = getFileName(i.getHeaders()) + "";
+        body.file = i.getBody(InputStream.class,null);
+
+        OutputStream output = new FileOutputStream(new File("D:/var/lib/asterisk/sounds/" + "Sound" + body.fileName));
+
+        int read = 0;
+        byte[] bytes = new byte[1024];
+
+//        output = new FileOutputStream(new File(""));
+        while ((read = body.file.read(bytes)) != -1) {
+            output.write(bytes, 0, read);
+        }
+        output.flush();
+        output.close();
+
+
+        this.exbody = body;
+
+
+    }
+
+
+
 
 
 

@@ -7,9 +7,6 @@ import lombok.Getter;
 import lombok.Setter;
 
 import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-import java.util.List;
 
 
 @Getter
@@ -23,19 +20,26 @@ public class CandyModel extends PanacheEntity {
 
     private int listened;
 
-    private String company;
+    public enum Company{VS, CP};
+
+    private Company company;
 
 
 
 
 
-    public CandyModel(){}
+    public CandyModel(){ }
 
-    public CandyModel(String name, String file, int listened, String company){
+    public CandyModel(String name, String file, int listened, Company c){
         this.name = name;
         this.file = file;
         this.listened = listened;
-        this.company = company;
+        this.company = c;
+
+    }
+
+    public static int getCount(){
+        return CandyModel.listAll().size();
     }
 
 
